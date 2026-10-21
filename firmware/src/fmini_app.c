@@ -583,6 +583,41 @@ static void fa_sv_do(void)
 }
 static int fa_msg_on(void) { return fa_msg_until && (int32_t)(fm1_ms - fa_msg_until) < 0; }
 
+#if BOARD_SMK37
+/* SMK-37 Pro: the pads pick the visible presets (16 at a time). A turn of PRESETS shows them for 4 s; KNOB
+ * BANK pins them; < > move by a page. A pad loads its preset (and previews it, as the knob does). */
+static uint32_t fa_total(void);
+static uint32_t fa_cur(void);
+static uint8_t fa_pick, fa_pick_pin, fa_pick_base;
+static uint32_t fa_pick_until;
+static void fa_pick_set(uint32_t cur)
+{
+    fa_pick_base = (uint8_t)(cur & ~15u);
+}
+static void fa_pick_open(void)
+{
+    fa_pick = 1;
+    fa_pick_until = fm1_ms + 4000u;
+    fa_pick_set(fa_cur());
+}
+static void fa_pick_page(int32_t d)
+{
+    uint32_t pages = (fa_total() + 15u) / 16u;
+    fa_pick_base = (uint8_t)(((fa_pick_base / 16u + (d > 0 ? 1u : pages + 15u)) % (pages ? pages : 1u)) * 16u);
+    fa_pick = 1;
+    fa_pick_until = fm1_ms + 4000u;
+}
+/* the volume: K1 moves the MASTER pot (smk_input.h reads it as an ADC channel); the header shows it for ~1 s */
+static uint32_t fa_vol_t;
+static int32_t fa_vol_pct;
+static void fa_vol_show(int32_t pct)
+{
+    fa_vol_pct = pct < 0 ? 0 : pct > 100 ? 100 : pct;
+    fa_vol_t = fm1_ms + 1000u;
+    ui.force = 1;
+}
+#endif
+
 static void fa_dialog(void)
 {
     uint32_t k = fa_sv_slot, i;
@@ -1181,6 +1216,17 @@ static void fa_scene(void)
         fa_ltext(14 + w + 6, 214, &AF_N, nm, FA_CR);
         fa_battery(226, 227);
     }
+#if BOARD_SMK37
+    if ((int32_t)(fa_vol_t - fm1_ms) > 0) {               /* K1: MASTER, its bar and value, over the header for ~1 s */
+        cv_rect(8, 0, 224, 22, FA_RGB(0x0E, 0x0D, 0x0C));
+        fa_ltext(12, 4, &AF_S, "MASTER", FA_CR);
+        cv_rect(64, 7, 110, 8, FA_RGB(0x3A, 0x36, 0x30));
+        if (fa_vol_pct)
+            cv_rect(66, 9, (int32_t)fa_vol_pct * 106 / 100, 4, FA_OR);
+        fmt_int(b, fa_vol_pct);
+        fa_ltext(184, 4, &AF_S, b, FA_CR);
+    }
+#endif
     if (fa_gl == 1u || fa_gl == 2u)
         fa_gl_dialog();
     else if (fa_sq)
@@ -1229,6 +1275,9 @@ static uint32_t fa_signature(void)
     for (i = 0; i < 16u; i++)
         h = (h ^ (uint32_t)(t->step[i].n ? t->step[i].note[0] : 0u)) * 16777619u;
     h = (h ^ fa_batt()) * 16777619u;                         /* the battery icon */
+#if BOARD_SMK37
+    h = (h ^ (uint32_t)((int32_t)(fa_vol_t - fm1_ms) > 0) * 0x9E3779B9u ^ (uint32_t)fa_vol_pct * 131u) * 16777619u;
+#endif
     return (h ^ t->preset) * 16777619u;
 }
 
@@ -1339,16 +1388,46 @@ static void fa_factory_extras(track_t *t, uint32_t n)
     fa_ar_last = x->arp[1] ? x->arp[1] : 1u;
 }
 
+#if BOARD_SMK37
+static uint32_t fa_total(void) { return FMINI_NFACTORY + fa_nuser(); }
+static uint32_t fa_cur(void)                    /* the patch shown, as a position in the list */
+{
+    const track_t *t = TSEL;
+    return fa_on_user() ? FMINI_NFACTORY + fa_user_rank((uint32_t)t->user - 1u)
+                        : (t->p[P_E7] >= 0 && t->p[P_E7] < (int32_t)FMINI_NFACTORY ? (uint32_t)t->p[P_E7] : fa_base % FMINI_NFACTORY);
+}
+static void fa_go(uint32_t nx)                  /* load the patch at position nx (factory, then the saved ones) */
+{
+    track_t *t = TSEL;
+    if (nx < FMINI_NFACTORY) {
+        t->user = 0;
+        apply_preset_to(t, nx);
+        t->p[P_E7] = (int16_t)nx;
+        fa_factory_extras(t, nx);                         /* its arpeggiator, LFO, FX settings and octave */
+    } else {
+        up_load(fa_user_nth(nx - FMINI_NFACTORY));
+    }
+    fmini_poll();
+}
+#endif
 /* PRESETS: the previous / next patch of the list (factory F1..F8, then the saved ones), round; in the SAVE dialog the slot */
 static void fa_preset(int32_t s)
 {
+#if BOARD_SMK37
+    uint32_t n = fa_total(), nx;
+#else
     track_t *t = TSEL;
     uint32_t nu = fa_nuser(), n = FMINI_NFACTORY + nu, cur, nx;
+#endif
     if (fa_sv) {
         fa_sv_slot = (uint8_t)((fa_sv_slot + UP_SLOTS + (s > 0 ? 1u : UP_SLOTS - 1u)) % UP_SLOTS);
         fa_sv_fill();
         return;
     }
+#if BOARD_SMK37
+    nx = (fa_cur() + (s > 0 ? 1u : n - 1u)) % n;
+    fa_go(nx);
+#else
     cur = fa_on_user() ? FMINI_NFACTORY + fa_user_rank((uint32_t)t->user - 1u)
                        : (t->p[P_E7] >= 0 && t->p[P_E7] < (int32_t)FMINI_NFACTORY ? (uint32_t)t->p[P_E7] : fa_base % FMINI_NFACTORY);   /* (OWN: an edit of CTRL / OSC / MIX: on from the patch it came from) */
     nx = (cur + (s > 0 ? 1u : n - 1u)) % n;
@@ -1361,6 +1440,7 @@ static void fa_preset(int32_t s)
         up_load(fa_user_nth(nx - FMINI_NFACTORY));
     }
     fmini_poll();
+#endif
 }
 
 /* a page button: the tap opens it */
@@ -1389,6 +1469,24 @@ static void fa_buttons(uint32_t pressed)
 {
     static const uint8_t PG_BTN[5] = {B_LFO, B_EDIT, B_SCL, B_FX, B_ENV};   /* (GLO: global, ARP, SEQ, REC, PLAY: their own) */
     uint32_t i;
+#if BOARD_SMK37
+    if (pressed & (1u << SMK_BTN_LEFT | 1u << SMK_BTN_RIGHT)) {   /* < >: the preset pages while the pads pick, else the screen's */
+        if (fa_pick || fa_pick_pin)
+            fa_pick_page((pressed >> SMK_BTN_RIGHT) & 1u ? 1 : -1);
+        else
+            fa_goto(fa_page + ((pressed >> SMK_BTN_RIGHT) & 1u ? 1u : FA_NPAGE - 1u));
+        return;
+    }
+    if ((pressed >> SMK_BTN_KNOB_BANK) & 1u) {            /* KNOB BANK: pin the pad picker (and show its page) */
+        fa_pick_pin = (uint8_t)!fa_pick_pin;
+        if (fa_pick_pin)
+            fa_pick_open();
+        str_cpy(fa_msg, fa_pick_pin ? "PADS PIN" : "PADS OFF", 16);
+        fa_msg_until = fm1_ms + 1500u;
+        ui.force = 1;
+        return;
+    }
+#endif
     if ((pressed >> panel.btn[B_HOME]) & 1u) {            /* HOME: the first screen, CTRL; the pop-ups close */
         fa_home();
         return;
@@ -1524,6 +1622,34 @@ static void fa_input(void)
     midi_pc_poll();                                         /* Program Change: a patch */
     fmini_poll();                                            /* SLOT turned: its patch */
     settings_later_poll();
+#if BOARD_SMK37
+    {   /* K1 (the MASTER pot): the header shows the level for a moment */
+        static int32_t last_q = -1;
+        int32_t q = song.master_q12;
+        if (last_q < 0)
+            last_q = q;                                 /* (the first pass: no overlay at boot) */
+        else if (q != last_q) {
+            last_q = q;
+            fa_vol_show((q * 100 + 2048) / 4096);
+        }
+    }
+    {   /* the pad picker: its hits, and the 4 s it stays up (KNOB BANK pins it) */
+        uint8_t hits;
+        if (fa_pick && !fa_pick_pin && (int32_t)(fm1_ms - fa_pick_until) >= 0)
+            fa_pick = 0;
+        smk_pad_pick = (uint8_t)(fa_pick || fa_pick_pin);
+        hits = smk_pad_take();
+        if (smk_pad_pick && hits) {
+            uint32_t total = fa_total(), n;
+            for (k = 0; k < 16u; k++)
+                if ((hits >> k & 1u) && (n = fa_pick_base + k) < total) {
+                    fa_go(n);
+                    fa_pick = 1;
+                    fa_pick_until = fm1_ms + 4000u;
+                }
+        }
+    }
+#endif
     if (TSEL->eng_req != ENGI_FMINI) {                       /* an old autosave: the instrument is FMINI */
         set_engine_of(TSEL, ENGI_FMINI);
         apply_preset_to(TSEL, 0);
@@ -1534,8 +1660,13 @@ static void fa_input(void)
     fmg_glide_sync();                                       /* the patch's GLIDE switch and time -> the track's */
     fmg_force_page = (int8_t)fa_page;
     fa_buttons(pressed);
-    if ((s = panel_enc(EN_PRESET)) != 0 && !fa_gl)
+    if ((s = panel_enc(EN_PRESET)) != 0 && !fa_gl) {
         fa_preset(s);
+#if BOARD_SMK37
+        if (!fa_pick_pin)
+            fa_pick_open();                             /* the pads show this patch's 16, ready to pick */
+#endif
+    }
     if (fa_track_preset())                                  /* a new preset (the knob, a Program Change, a saved one): HOME */
         fa_home();
     fa_cc_poll();                                         /* the CCs the MIDI inputs brought */
@@ -1666,6 +1797,42 @@ static void fa_input(void)
         }
 }
 
+#if BOARD_SMK37
+static void fa_leds(void)
+{
+    uint8_t nl[LED_BUF] = {0};
+    uint32_t k, p, total = fa_total(), cur = fa_cur(), base = fa_pick_base;
+    if (idle_leds() || fm1_led_anim_on())
+        return;
+    {
+        static const uint8_t PG_LED[FA_NPAGE] = {B_LFO, B_SCL, B_SCL, B_EDIT, B_ENV, B_ENV, B_FX};
+        led_put(nl, panel.btn[PG_LED[fa_page]], 1);          /* the page's button */
+        led_put(nl, panel.btn[B_HOME], fa_page == 0u);        /* CTRL is HOME's: both light */
+    }
+    led_put(nl, panel.btn[B_ARP], TSEL->p[P_AMODE] != 0);
+    led_put(nl, panel.btn[B_SEQ], fa_sq != 0u);
+    led_put(nl, panel.btn[B_REC], fa_sq_rec != 0u);
+    led_put(nl, panel.btn[B_PLAY], song.playing != 0u);
+    led_put(nl, panel.btn[B_SAVE], fa_sv);
+    led_put(nl, panel.btn[B_GLO], fa_gl != 0u);
+    led_put(nl, panel.btn[B_OCTDN], song.octave < 0);
+    led_put(nl, panel.btn[B_OCTUP], song.octave > 0);
+    for (k = 0; k < SMK_NLED; k++)                         /* (the buttons are on / off: no FM-1 glow) */
+        fm1_led[k] = nl[k];
+    for (p = 0; p < SMK_NPAD; p++) {                       /* the picker: the 16, the loaded one bright, a touch orange */
+        uint32_t n = base + p;
+        if ((fa_pick || fa_pick_pin) && n < total) {
+            if (fm1_in.pad_st[p] & 0x80u)
+                padled_set(p, 110, 60, 10);
+            else if (n == cur)
+                padled_set(p, 120, 120, 120);
+            else
+                padled_set(p, 12, 12, 12);
+        } else
+            padled_set(p, 0, 0, 0);
+    }
+}
+#else
 static void fa_leds(void)
 {
     uint8_t nl[FM1_NCOL] = {0}, nd[FM1_NCOL] = {0}, nb[FM1_NCOL] = {0}, nm[FM1_NCOL] = {0};
@@ -1702,6 +1869,7 @@ static void fa_leds(void)
         fm1_led[k] = nl[k];
     }
 }
+#endif
 
 /* power-on: track 1 is the instrument (the first factory patch), the others are muted FMINI parts */
 static void fa_init(void)

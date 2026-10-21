@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
+#include "../hal/fm1_flash_map.h"   /* FL_JEDEC_OK (host tests include this file without fm1_flash.h) */
 /* Projects: four slots. The slots live in .noinit RAM: they
  * survive resets and UBOOT entry. With FELUCCA_FLASH (default) every save
  * also goes to flash through storage.c, and an
@@ -1170,12 +1171,13 @@ static void persist_boot(void)                    /* before settings_init / pane
 #if FELUCCA_FLASH
     persist_t p;
     uint32_t f = irq_save();
-    flash_ok = FL_FAR(fl_jedec_ram)() == 0x856014u;       /* the expected 1 MiB part, else stay RAM-only */
+    flash_ok = FL_JEDEC_OK(FL_FAR(fl_jedec_ram)());      /* the expected 1 MiB part, else stay RAM-only */
     irq_restore(f);
     if (!flash_ok)
         return;
-    fl_plain_window_init();                        /* flash above 0x93000 reads as plaintext through XIP
+    fl_plain_window_init();                        /* flash above 0x93000 (SMK 0x9D000) reads as plaintext through XIP
                                                     * (user sample sets are played from there) */
+    st_owner_check();                              /* SMK: never parse another ported firmware's store (storage.c) */
 #if FELUCCA_SLICE
     slc_store_boot();                              /* (the scans read each slot's stored slices) */
 #endif

@@ -1,0 +1,122 @@
+# Port plan for FMini-1 v1.8.0 on the SMK-37.
+# Owner-approved defaults; the source layer must still pass the baseline and
+# merge-base gates.
+firmware:
+  name: FMini-1
+  upstream: https://github.com/ruppert/fmini-1
+  base: ab0f5c83d9c3b8cf10fd2f9ef3dc760a06c3abb3
+  family: felucca
+  board_layer: felucca
+  lost_on_smk:
+    - TRS MIDI IN (PH8 is a key-matrix row; the SMK jack is MIDI OUT)
+  priorities:
+    - preserve FMini-1 sound, seven-page UI, name, logo and boot
+    - use the SMK keybed, pads and controls without altering the FM-1 build
+    - mirror USB MIDI output to the SMK TRS jack
+    - show a temporary MASTER level indicator when K1 changes volume
+
+delivery:
+  mode: upstream
+  pr: ""
+  fork: davidozz0/fmini-smk smk37
+  package: fmini-1-smk37.fwsc
+  usb_name: FM-1 Midi
+  data_family: FMINI
+  copyright: davidozz0
+
+models: [pro, elite, mke]
+
+keys:
+  middle: fm1
+  outer: extend
+  outer_drums: {}
+  velocity: factory
+
+pads:
+  pattern: picker
+  order: reading
+  colours: screen
+  idle: dark
+  playhead: bright
+  picker:
+    enabled: true
+    knob: K4
+    page: "< >"
+    pin: KNOB BANK
+  velocity: true
+  notes: >-
+    Pads select and preview the visible FMini presets; the keybed remains the
+    playing surface.
+
+# This Pro has a damaged FADER 1. Keep fader support in the board layer, but
+# disable it in this profile until the unit is repaired and rechecked.
+faders:
+  pattern: custom
+  takeover: soft
+  bank_button: FADER BANK
+  banks: {}
+  fixed: []
+  screen: none
+
+wheels:
+  pitch:
+    target: bend
+    range_semitones: 7
+    applies_to: selected
+  mod:
+    target: macro
+    detail: >-
+      FMINI MOD depth for MOD OSC/MOD FLT; emit CC1 on USB and TRS MIDI OUT.
+  calibration: auto
+
+# Extension fields for the board-specific implementation.
+midi:
+  trs_in: disabled
+  trs_out: mirror_usb_midi
+  trs_out_default: true
+  clock_out: internal_clock_when_enabled
+  pitch_bend_trs: true
+  mod_cc1_trs: true
+
+knobs:
+  layout: fm1
+  K1: master
+  K2: select
+  K3: algorithm
+  K4: presets
+  K5: dial 1
+  K6: dial 2
+  K7: dial 3
+  K8: dial 4
+  step: detent
+  pages: {}
+
+buttons:
+  map: printed
+  names: firmware
+  extra:
+    KNOB BANK: pins the pad preset picker
+    FADER BANK: unused while this device's faders are disabled
+    "<": page back
+    ">": page forward
+
+screen:
+  style: keep
+  colours: "FMini-1 original palette; match picker pads to the displayed state"
+  rules:
+    - keep the FMini-1 name, logo, boot and seven-page workflow
+    - >-
+      Show a temporary MASTER label, bar and value for about 1 second after K1
+      volume changes.
+    - keep the display and pad feedback in sync with the selected control
+    - no hidden modes; play first
+
+pedal: none
+modes: {}
+open_questions:
+  - >-
+    Verify git merge-base and applicability of the Felucca 1.6 smk37 layer to
+    FMINI's Felucca 1.6.1 base.
+  - >-
+    Re-enable and map faders only after FADER 1 is repaired and all four
+    controls are verified on this unit.
