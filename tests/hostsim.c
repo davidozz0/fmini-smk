@@ -27,7 +27,9 @@
 #undef memset
 #undef memcpy
 #undef memcmp
+#ifndef FM1_IN_EXTERN
 static struct { volatile uint32_t notes, buttons; } fm1_in;
+#endif
 #include "../firmware/src/core.h"
 #include "../firmware/src/engines.c"
 #include "../firmware/src/fmini_rec.c"
@@ -46,6 +48,9 @@ __attribute__((constructor)) static void hostsim_fmini_presets(void) { fb_names_
 #include "../firmware/src/slicer.c"
 #include "../firmware/src/fx.c"
 static void fm1_delay_ms(uint32_t ms) { (void)ms; }
+#if BOARD_SMK37
+#include "../firmware/src/smk_trs.c"           /* TRS OUT hooks (stubs: no SMK_TRS_TARGET) */
+#endif
 #include "../firmware/src/usb.c"
 #include "../firmware/src/midi_uart.c"                /* TRS MIDI IN: its parser (um_byte) feeds midi_in_q */
 #include "../firmware/src/song_chain.c"

@@ -6,14 +6,14 @@
  *   cmd 0x11  handshake -> we answer our package identity (FELUCCA_ID)
  *   F0 22 24 35 7F F7  upgrade -> ota_session(): pull parts of the package
  *     with cmd 0x30 read requests, check them, stage the package's update
- *     loader at 0xE0000 (outside Felucca's store), ask 0xE0000000 ("success"),
- *     then write the UPDATA_PARM record (flash 0xE4F00 + RAM 0x01C7FD88) and
+ *     loader at 0xE0000 (outside Felucca's store; SMK: 0xBB000), ask 0xE0000000 ("success"),
+ *     then write the UPDATA_PARM record (flash 0xE4F00, SMK 0xBFF00, + RAM 0x01C7FD88) and
  *     reset. The SPL runs the loader, which installs the package.
  * Nothing is committed before the host's "success"; a failure after the
  * staging began erases the staging area, and Felucca carries on. A package
  * whose flash.bin is not this board's size (OTA_FL_LEN: another board's
  * package) is refused before anything is erased; the official loader's packages
- * (V15: OTA_FL_LEN; V16: OTA_FL_LEN_V16) are accepted whatever the head of the device.
+ * (the stock sizes, OTA_STOCK_LEN) are accepted whatever the head of the device.
  *
  * Portable core: the firmware (felucca.c) and the Mac test (ota_test.c)
  * supply these hooks:
@@ -25,12 +25,32 @@
  *   ota_show(step, code)       progress / result for the screen
  *   ota_commit(parm)           write RAM record + reset (never returns on hardware)
  */
+#if BOARD_SMK37
+/* SMK-37 Pro: the last 5 sectors of the stock VM (0xBB000..0xBFFFF, FL_OTA in fm1_flash.h), below BTIF /
+ * USRTRIM 0xC0000..0xC1FFF; the update loader may drop records only below 0xC0000 (ldr_core.c) */
+#define OTA_AREA 0x000BB000u                     /* staged loader, 5 x 4 KiB */
+#define OTA_AREA_LEN 0x5000u
+#define OTA_RES (OTA_AREA + OTA_AREA_LEN - 0x100u)  /* 0xBFF00 = 4K boundary - 256: SPL scan */
+#define OTA_FL_LEN 0x9D000u                      /* flash.bin = [0, the PRCT end): the head and the SMK's app area
+                                                  * (ldr_core.c LDR_APP_HI) */
+#ifndef SMK_MODEL
+#define SMK_MODEL "SMK-37 Pro"                   /* (fm1_cc.h) */
+#endif
+#define OTA_PARM_ID "ota-" SMK_MODEL "_016"       /* the stock app's parm identity (Pro 18 B, Elite 20 B) */
+/* the stock packages' flash.bin sizes, measured on stock/*.fwsc: Pro/Elite/MKE 011 and 014 = 0x9B000, 012, 013
+ * and 015 = 0x9C000, 016 = 0x9D000. Going back to stock goes through this entry, so all of them are taken. */
+#define OTA_STOCK_LEN(n) ((n) == 0x9B000u || (n) == 0x9C000u || (n) == OTA_FL_LEN)
+_Static_assert(OTA_AREA + OTA_AREA_LEN <= 0xC0000u && OTA_AREA >= 0x9D000u, "SMK: OTA area outside the VM");
+#else
 #define OTA_AREA 0x000E0000u                     /* staged loader, 5 x 4 KiB */
 #define OTA_AREA_LEN 0x5000u
 #define OTA_RES (OTA_AREA + OTA_AREA_LEN - 0x100u)  /* 0xE4F00 = 4K boundary - 256: SPL scan */
 #define OTA_FL_LEN 0x93000u                      /* flash.bin = [0, the PRCT end): the head and this board's app area,
                                                   * the size the update loader writes (ldr_core.c LDR_APP_HI) */
 #define OTA_FL_LEN_V16 0xA9000u                  /* the official V16 package's flash.bin (its app area is larger; the official loader only) */
+#define OTA_STOCK_LEN(n) ((n) == OTA_FL_LEN || (n) == OTA_FL_LEN_V16)
+#define OTA_PARM_ID "ota-FM-1_015"
+#endif
 #define OTA_LDR_HCRC 0xEBAAu                     /* official update loader (usb_hid_ota.bin) */
 #define OTA_LDR_DCRC 0x5881u
 #define OTA_LDR_LEN 0x4DE1u
@@ -291,7 +311,7 @@ static int ota_stage(void)                       /* steps 1..6; 0 = host said su
     if (official) {
         /* the official loader writes the whole flash.bin, head included: a stock V15 or V16 package is accepted whatever
          * the head of this device (a stock update does the same from one stock version to the next). The head is not compared */
-        if (fl_len != OTA_FL_LEN && fl_len != OTA_FL_LEN_V16)
+        if (!OTA_STOCK_LEN(fl_len))
             return -15;                                     /* another board's package: nothing staged, nothing erased */
         ota_show(2, 0);
     } else if (fl_len != OTA_FL_LEN) {
@@ -364,8 +384,8 @@ static int ota_session(void)
     ota_wr16(parm + 2, 0x5A0Du);
     ota_wr16(parm + 4, 0x5A01u);
     ota_wr16(parm + 6, 0x5441u);
-    for (i = 0; i < 12u; i++)
-        parm[8 + i] = (uint8_t)"ota-FM-1_015"[i];    /* the loader's own USB identity */
+    for (i = 0; i < sizeof OTA_PARM_ID - 1u; i++)    /* FM-1 12 B, SMK 18 B; zero up to +0x27 */
+        parm[8 + i] = (uint8_t)OTA_PARM_ID[i];    /* the loader's own USB identity */
     ota_wr32(parm + 72, OTA_AREA);
     ota_wr16(parm, ota_crc16(parm + 2, 78, 0));
 #if FELUCCA_OTA_DRYRUN
