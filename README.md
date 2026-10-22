@@ -56,6 +56,26 @@ Install it with FMini-1's installer or the manufacturer's updater. `tools/fm1_in
 that the package matches the connected model. **Back up first**: keep the stock package for your
 model and two full flash dumps before writing. See `SMK37.md` for the install and rollback rules.
 
+### Web installer (no tools, no driver)
+
+<https://davidozz0.github.io/fmini-smk/webapp/installer/> — open it in **Chrome or Edge** (Web Serial),
+plug the SMK via USB, press install and pick its port. The page checks the package's sha256, writes the
+app area and verifies the identity the keyboard reports afterwards; it installs nothing on a device that
+is not `SMK-37 Pro_9..`. The editor is at `/webapp/editor/`.
+
+The page is generated, not hand-written:
+
+```sh
+BOARD=smk37 ./build.sh
+python3 web/make_site.py build/fmini-1-smk37.fwsc 1.8.0-smk37 build/site
+```
+
+`web/make_site.py` inlines `fm1pkg.js`, `fm1ota.js`, `fm1backup.js` and the metadata into
+`web/index_pkg.html` (edited here: title and a banner saying it is the SMK-37 port, not the official
+FMini-1); the result goes to the `gh-pages` branch. The package published with it is
+`fmini-1-1.8.0-smk37.fwsc`, sha256 `3cca03f3…` — the same bytes `build.sh` produces from this branch
+(the build is reproducible).
+
 ## Build
 
 ```sh

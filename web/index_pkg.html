@@ -5,7 +5,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Felucca</title>
+<title>FMini-1 SMK-37 installer</title>
 <style>
   :root { --bg: #fff; --fg: #000; --dim: #777; }
   @media (prefers-color-scheme: dark) {
@@ -29,7 +29,14 @@
 <body>
 <main>
   <button class="lang" id="lang"></button>
-  <h1>Felucca</h1>
+  <h1>FMini-1 for the SMK-37</h1>
+  <div style="margin:16px 0;padding:12px 14px;border:1px solid var(--dim);border-left:4px solid #ff621a;border-radius:8px">
+    <p style="margin:0 0 6px"><b>PORT FOR THE SMK-37 PRO</b></p>
+    <p class="small" style="margin:0">This is not the official FMini-1: it is version 1.8.0 built for the
+    <b>M-VAVE SMK-37 Pro</b> — 37 keys, 16 pads with the sound picker, TRS MIDI OUT, and its own store family so it
+    never reads Felucca's or OberVave's data. Where the page says <i>FM-1</i>, read SMK-37 Pro: the installer accepts
+    only a device that reports <code>SMK-37 Pro_9..</code>. GPL-3.0 — the sources are in the repository.</p>
+  </div>
   <p data-t="intro"></p>
   <p data-t="warn"></p>
   <p class="small" data-t="direct"></p>
