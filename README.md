@@ -67,13 +67,13 @@ The page is generated, not hand-written:
 
 ```sh
 BOARD=smk37 ./build.sh
-python3 web/make_site.py build/fmini-1-smk37.fwsc 1.8.0-smk37 build/site
+python3 web/make_site.py build/fmini-1-smk37.fwsc 1.8.0-smk37.1 build/site
 ```
 
 `web/make_site.py` inlines `fm1pkg.js`, `fm1ota.js`, `fm1backup.js` and the metadata into
 `web/index_pkg.html` (edited here: title and a banner saying it is the SMK-37 port, not the official
 FMini-1); the result goes to the `gh-pages` branch. The package published with it is
-`fmini-1-1.8.0-smk37.fwsc`, sha256 `3cca03f3…` — the same bytes `build.sh` produces from this branch
+`fmini-1-1.8.0-smk37.1.fwsc`, sha256 `74e793ec…` — the same bytes `build.sh` produces from this branch
 (the build is reproducible).
 
 ## Build
