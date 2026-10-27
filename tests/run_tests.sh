@@ -275,6 +275,8 @@ for m in pro elite mke; do               # the packages build.sh made (BOARD=smk
 done
 $CC -DBOARD_SMK37=1 -o "$OUT/ldr_test_smk" tests/ldr_test.c
 run "update loader, SMK-37 Pro: app area 0x4000-0x9CFFF, protected ranges untouched" "$OUT/ldr_test_smk" "$OUT/smk_old.fwsc" "$OUT/smk_new.fwsc"
+$CC -O2 -w -Ifirmware/src -o "$OUT/smk_wheel_test" tests/smk_wheel_test.c
+run "SMK-37 Pro wheels: the bend is back to 0 after a slow touch (a stuck bend = transposed keys), the full travel reaches it, the mod wheel 0..127" "$OUT/smk_wheel_test"
 
 if [ -f build/gen/felucca_tables.h ]; then
     $CC -O2 -w -Ibuild/gen -Ifirmware/src -o "$OUT/hostsim" tests/hostsim.c -lm
