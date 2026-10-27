@@ -853,7 +853,7 @@ const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textCont
 const say = (txt) => { lastKey = null; $("status").textContent = txt; };
 const log = (t) => { $("log").textContent += t + "\n"; };
 let image = null;
-const meta = {"version": "1.8.0-smk37", "product": "SMK-37 Pro_900", "pkg": "../../firmware/fmini-1-1.8.0-smk37.fwsc"};
+const meta = {"version": "1.8.0-smk37.1", "product": "SMK-37 Pro_900", "pkg": "../../firmware/fmini-1-1.8.0-smk37.1.fwsc"};
 
 let writing = false, stock = null, stockFileEpoch = 0;
 const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on; };
