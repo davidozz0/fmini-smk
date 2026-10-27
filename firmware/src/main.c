@@ -78,6 +78,7 @@ static void hexs(char *b, uint32_t v)
 }
 
 #if BOARD_SMK37
+#include "smk_wheel.h"            /* the wheels: a raw reading -> the bend and the mod wheel (smk_wheels below) */
 /* pads as a step grid (1-8 top row): the DRUM grid, NAME, the layers' tiles (not SCL: notes) */
 static void smk_grid(void)
 {
@@ -117,49 +118,17 @@ static void smk_faders(void)
     }
 }
 
-/* the wheels (stock: mux C address 4 = pitch, 5 = mod), self-calibrating: the pitch wheel's rest is its centre
- * (taken at power-on, followed slowly while it rests), each wheel's range grows to what it has reached (the
- * travel is short: raw ~445..640 pitch, ~474..629 mod on a unit). Pitch: a 14-bit bend -8192..8191 with a dead
- * band around the centre; mod: 0..127, up (lower raw) = more. The audio ISR plays them as the selected track's
+/* the wheels (stock: mux C address 4 = pitch, 5 = mod; smk_wheel.h has the calibration and the dead bands). Pitch:
+ * a 14-bit bend -8192..8191; mod: 0..127, up (lower raw) = more. The audio ISR plays them as the selected track's
  * MIDI pitch bend and CC1 (seq.c smk_wheels_block) */
 static void smk_wheels(void)
 {
-    enum { DEAD = 12, SPAN0 = 80, MOD_LO = 485, MOD_HI = 615 };
-    static int32_t pc, plo, phi, mlo, mhi, rest;
-    int32_t p = fm1_in.wheel[0], m = fm1_in.wheel[1], d, b, mw;
+    static smk_pw_t pw;
+    static smk_mw_t mw;
     if (fm1_in.frames < 300u)                     /* (the readings settle) */
         return;
-    if (!pc) {
-        pc = p;
-        plo = p - SPAN0;
-        phi = p + SPAN0;
-        mlo = m < MOD_LO ? m : MOD_LO;
-        mhi = m > MOD_HI ? m : MOD_HI;
-    }
-    if (p < plo)
-        plo = p;
-    if (p > phi)
-        phi = p;
-    if (m < mlo)
-        mlo = m;
-    if (m > mhi)
-        mhi = m;
-    d = p - pc;
-    if (d > -DEAD && d < DEAD) {
-        b = 0;
-        if (++rest > 200) {                        /* resting: the centre follows a slow drift */
-            pc += d > 0 ? 1 : d < 0 ? -1 : 0;
-            rest = 0;
-        }
-    } else {
-        rest = 0;
-        b = d > 0 ? (d - DEAD) * 8191 / (phi - pc - DEAD > 1 ? phi - pc - DEAD : 1)
-                  : (d + DEAD) * 8192 / (pc - plo - DEAD > 1 ? pc - plo - DEAD : 1);
-        b = clamp(b, -8192, 8191);
-    }
-    mw = mhi - m <= DEAD ? 0 : (mhi - m - DEAD) * 127 / (mhi - mlo - DEAD > 1 ? mhi - mlo - DEAD : 1);
-    smk_bend14 = (int16_t)b;
-    smk_modw = (uint8_t)clamp(mw, 0, 127);
+    smk_bend14 = (int16_t)smk_pw_bend(&pw, fm1_in.wheel[0], fm1_ms);
+    smk_modw = (uint8_t)smk_mw_val(&mw, fm1_in.wheel[1]);
 }
 #endif
 
