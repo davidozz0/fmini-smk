@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- SPDX-License-Identifier: GPL-3.0-only
      Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments -->
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,7 +13,6 @@
          font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
   main { max-width: 520px; margin: 0 auto; padding: 48px 16px; }
   h1 { font-size: 24px; font-weight: 600; margin: 0 0 24px; }
-  .lang { float: right; font-size: 13px; color: var(--dim); cursor: pointer; text-decoration: underline; background: none; padding: 0; color: var(--dim); }
   p { margin: 0 0 16px; }
   button { font: inherit; background: var(--fg); color: var(--bg); border: 0; padding: 8px 20px; cursor: pointer; }
   button:disabled { opacity: .3; cursor: default; }
@@ -25,14 +24,21 @@
 </head>
 <body>
 <main>
-  <button class="lang" id="lang"></button>
   <h1>FMini-1 for the SMK-37</h1>
   <div style="margin:16px 0;padding:12px 14px;border:1px solid var(--dim);border-left:4px solid #ff621a;border-radius:8px">
-    <p style="margin:0 0 6px"><b>PORT FOR THE SMK-37 PRO</b></p>
-    <p class="small" style="margin:0">This is not the official FMini-1: it is version 1.8.0 built for the
-    <b>M-VAVE SMK-37 Pro</b> — 37 keys, 16 pads with the sound picker, TRS MIDI OUT, and its own store family so it
-    never reads Felucca's or OberVave's data. Where the page says <i>FM-1</i>, read SMK-37 Pro: the installer accepts
-    only a device that reports <code>SMK-37 Pro_9..</code>. GPL-3.0 — the sources are in the repository.</p>
+    <p style="margin:0 0 6px"><b>UNOFFICIAL PORT FOR THE M-VAVE SMK-37 PRO</b></p>
+    <p class="small" style="margin:0 0 8px">This is <b>not</b> the official FMini-1 and it is <b>not</b> for the FM-1. It is
+    FMini-1 <b>1.16.0</b> rebuilt for the <b>M-VAVE SMK-37 Pro</b>, and it installs only on a device that reports
+    <code>SMK-37 Pro_9..</code> (never on an FM-1, an Elite, an MKE-P37 or another SMK-37 model).</p>
+    <p class="small" style="margin:0 0 6px">What the port changes: 37 velocity keys instead of the FM-1's matrix;
+    the 16 RGB pads pick the <b>200 presets</b> 16 at a time (<b>PRESETS</b> opens the picker, <b>KNOB BANK</b> pins it,
+    <code>&lt;</code> / <code>&gt;</code> turn the page); <b>K1</b> is the master volume; the two wheels bend and modulate
+    and are sent to MIDI; the 3.5 mm jack is a <b>TRS MIDI OUT</b> mirroring USB (there is no MIDI IN on that jack).
+    The four faders stay off on this unit (FADER 1 is damaged).</p>
+    <p class="small" style="margin:0">Its store is tagged <code>FMINI</code>, so it never reads another firmware's data
+    (Clipper, Felucca, OberVave, Sloop). <b>Saving a preset uses the stock firmware's user-sample area</b>: the first save
+    releases the stock end marker, so returning to stock rebuilds its <i>factory</i> key, knob and fader mapping.
+    Calibration, Bluetooth pairing and the key data are never written. GPL-3.0, sources in the repository.</p>
   </div>
   <p data-t="intro"></p>
   <p data-t="warn"></p>
@@ -366,7 +372,26 @@ async function buildFeluccaPackage(stockBytes, appBytes, product) {
 const HS_QUERY = [0xF0, 0x00, 0x32, 0x45, 0x00, 0x00, 0x00, 0x40, 0x7F, 0xF7];
 const UPGRADE = [0xF0, 0x22, 0x24, 0x35, 0x7F, 0xF7];
 const MAXDATA = 512;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Waits come from a worker's timer: a page's timers are clamped to 1 s (and more) when the tab is in the background,
+// which made every 10 ms packet wait a second. The worker's timers are not. Without workers, the page's timers.
+let timerWorker = null, timerSeq = 0;
+const timerWaiters = new Map();
+function timers() {
+  if (timerWorker !== null) return timerWorker;
+  try {
+    const src = "onmessage=(e)=>{setTimeout(()=>postMessage(e.data.id),e.data.ms)};";
+    timerWorker = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+    timerWorker.onmessage = (e) => { const r = timerWaiters.get(e.data); timerWaiters.delete(e.data); if (r) r(); };
+  } catch (_) { timerWorker = false; }
+  return timerWorker;
+}
+const sleep = (ms) => new Promise((r) => {
+  const w = timers();
+  if (!w) { setTimeout(r, ms); return; }
+  const id = ++timerSeq;
+  timerWaiters.set(id, r);
+  w.postMessage({ id, ms });
+});
 const IS_OTA = (id) => /^ota-/i.test(id.model);
 // two models ("ota-" aside) are exactly the same: a package installs only on its own model (the SMK-37 Pro,
 // SMK-37 Elite and MKE-P37 builds each on their own model, never an FM-1 and an SMK)
@@ -442,9 +467,7 @@ class Link {
   drain() { this.q.length = 0; }
   async read(ms) {
     if (!this.q.length) {
-      let tm;
-      await Promise.race([new Promise((r) => { this.waiter = r; }), new Promise((r) => { tm = setTimeout(r, ms); })]);
-      clearTimeout(tm);
+      await Promise.race([new Promise((r) => { this.waiter = r; }), sleep(ms)]);
       this.waiter = null;
     }
     return this.q.shift() || null;
@@ -807,18 +830,18 @@ const TEXT = {
     license: "GPL-3.0、無保証。ソース:",
   },
   en: {
-    intro: "Connect the FM-1 by USB. (Works in Chrome or Edge.)",
+    intro: "Connect the SMK-37 Pro by USB. (Works in Chrome or Edge.)",
     warn: "Do not unplug the USB cable while writing.",
     install: "Install", other: "日本語",
     editor: "Editor (after installing: edit sounds and sequences from the computer)",
     direct: "Connect the USB cable directly to the computer. No probe or Transporter is needed.",
-    brick: "If an install fails and the FM-1 no longer starts, recovering it needs a Transporter:",
-    beta: "Felucca 1.0 is a field-testing release; please report problems on GitHub. The author accepts no responsibility if your FM-1 is damaged or misbehaves because of this custom firmware. Use it at your own risk.",
-    back: "Get official FM-1 V15 from M-VAVE and select the unmodified FM-1.fwsc. The browser validates it locally; it is not sent to a server.",
-    stockTitle: "Return to official V15", stockFile: "Official FM-1.fwsc", stockGo: "Back up and return to official V15",
+    brick: "If an install fails and the SMK-37 Pro no longer starts, recovering it needs a Transporter (for the FM-1) or a full flash dump written over the bootloader:",
+    beta: "This is an unofficial port, built and tested on one SMK-37 Pro only; please report problems on GitHub. The authors accept no responsibility if your keyboard is damaged or misbehaves because of this custom firmware. Use it at your own risk.",
+    back: "Get the official SMK-37 Pro package from M-VAVE and select it unmodified. The browser validates it locally; it is not sent to a server.",
+    stockTitle: "Return to the official firmware", stockFile: "Official SMK-37 Pro .fwsc", stockGo: "Back up and return to the official firmware",
     stockBackup: "Current music, saved music, sound banks, samples and settings are saved first. Older firmware needs a Felucca update for complete backups. To restore an archive later, reinstall Felucca and use the editor.",
     stockRecovery: "Resume an interrupted update: I already saved a complete backup to this computer",
-    stockValid: "Official V15 verified", stockConfirm: "Has the complete backup file been saved to this computer? Continue to return to official V15. Official V15 cannot open Felucca music.",
+    stockValid: "Official package verified", stockConfirm: "Has the complete backup file been saved to this computer? Continue to return to the official firmware. The stock firmware cannot open FMini-1 music.",
     stockNeedBackup: "An update loader cannot export a backup. Only select resume if you already saved a complete backup.",
     stockUnsupported: "This Felucca does not support complete backups. Install the current Felucca first.",
     backup: "Saving complete backup ", stockError: "Cannot validate official firmware: ",
@@ -827,33 +850,31 @@ const TEXT = {
     reboot: "Restarting", done: "Done", stopped: "Stopped. Replug the USB cable and press Install again.",
     error: "Error: ",
     denied: "MIDI (SysEx) access was not allowed. Allow MIDI in the site settings (address bar) and press Install again.",
-    notfound: "FM-1 not found. Check the USB cable (a data cable), close other apps that use MIDI, and press Install again.",
-    model: "The connected device is not an FM-1.",
+    notfound: "SMK-37 Pro not found. Check the USB cable (a data cable), close other apps that use MIDI, and press Install again.",
+    model: "The connected device is not an SMK-37 Pro (this package installs on SMK-37 Pro_9.. only).",
     lost: "The USB connection was lost. Replug it and press Install again.",
-    noloader: "The FM-1 in update mode was not found. Replug the USB cable and press Install again (it stays in update mode until it is finished).",
-    noreturn: "The FM-1 did not come back. Power-cycle it.",
-    mismatch: "Written, but the FM-1 reports another version: ",
+    noloader: "The SMK-37 Pro in update mode was not found. Replug the USB cable and press Install again (it stays in update mode until it is finished).",
+    noreturn: "The SMK-37 Pro did not come back. Power-cycle it.",
+    mismatch: "Written, but the keyboard reports another version: ",
     badpkg: "The file to install is damaged. Reload the page.",
     leave: "Writing. Do not close the page.",
     license: "GPL-3.0, no warranty. Source:",
   },
 };
-let lang = (navigator.language || "en").toLowerCase().startsWith("ja") ? "ja" : "en";
+let lang = "en";                       /* one language: the port's page is English only (no switcher) */
 const t = (k) => TEXT[lang][k];
 let lastKey = null, lastArg = "";
 function applyLang() {
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-t]").forEach((e) => { e.textContent = t(e.dataset.t); });
-  $("lang").textContent = t("other");
   if (lastKey) $("status").textContent = t(lastKey) + lastArg;
 }
-$("lang").addEventListener("click", () => { lang = lang === "ja" ? "en" : "ja"; applyLang(); });
 applyLang();
 const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textContent = t(k) + arg; };
 const say = (txt) => { lastKey = null; $("status").textContent = txt; };
 const log = (t) => { $("log").textContent += t + "\n"; };
 let image = null;
-const meta = {"version": "1.8.0-smk37.1", "product": "SMK-37 Pro_900", "pkg": "../../firmware/fmini-1-1.8.0-smk37.1.fwsc"};
+const meta = {"version": "1.16.0-smk37.1", "product": "SMK-37 Pro_900", "pkg": "../../firmware/fmini-1-1.16.0-smk37.1.fwsc"};
 
 let writing = false, stock = null, stockFileEpoch = 0;
 const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on; };
