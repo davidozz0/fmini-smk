@@ -69,6 +69,7 @@ static void fl_plain_window_init(void) {}
 #define FL_FAR(fn) (fn)
 #include "../firmware/src/storage.c"
 #include "../firmware/src/upreset.c"
+static void fb_boot(void) {}                       /* project.c persist_boot calls it (fmini_bank.c, not in this test) */
 #include "../firmware/src/project.c"
 
 static uint8_t rep[1024];                         /* the editor's reply */

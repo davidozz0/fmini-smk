@@ -56,6 +56,8 @@ static void fl_plain_window_init(void) {}
 #define FL_FAR(fn) (fn)
 #include "../firmware/src/storage.c"
 #include "../firmware/src/upreset.c"
+static void fb_boot(void) {}                       /* project.c persist_boot calls it (fmini_bank.c, not in this test:
+                                                    * the preset bank has its own tests/fmini_bank_test.c) */
 #include "../firmware/src/project.c"
 
 enum { ED_UI_STATE = 34, ED_UI_SET, ED_UI_PALETTES, ED_FAV_GET, ED_FAV_SET };

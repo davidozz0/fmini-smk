@@ -1760,7 +1760,8 @@ static int fa_save_slot(uint32_t k, const char *name)
     return fb_write(k, rec, n);                       /* flash (fmini_bank.c), or the host's RAM copy */
 }
 
-/* the slot of the list to play (PRESETS, the pads' picker) */
+#if BOARD_SMK37
+/* the pads' picker (below): the patch of slot nx into the track, as fa_preset does for the knob */
 static void fa_go(uint32_t nx)
 {
     track_t *t = TSEL;
@@ -1770,10 +1771,12 @@ static void fa_go(uint32_t nx)
     fa_factory_extras(t, nx);                         /* its arpeggiator, LFO, FX settings and octave */
     fmini_poll();
 }
+#endif
 
 /* PRESETS: the previous / next patch of the list (factory F1..F8, then the saved ones), round; in the SAVE dialog the slot */
 static void fa_preset(int32_t s)
 {
+    track_t *t = TSEL;
     uint32_t cur, nx;
     if (fa_sv) {
         fa_sv_slot = (uint8_t)((fa_sv_slot + FMINI_NSLOT + (s > 0 ? 1u : FMINI_NSLOT - 1u)) % FMINI_NSLOT);
@@ -1781,12 +1784,16 @@ static void fa_preset(int32_t s)
         return;
     }
     /* every slot is a preset now (0..199, the same way): the one shown, or the patch the track came from (OWN) */
-    cur = fa_cur_slot();
+    cur = t->p[P_E7] >= 0 && t->p[P_E7] < (int32_t)FMINI_NSLOT ? (uint32_t)t->p[P_E7] : fa_base % FMINI_NSLOT;
     {   /* one preset per detent, however fast they came (s: the detents since the last frame, signed); round */
         int32_t i = ((int32_t)cur + s) % (int32_t)FMINI_NSLOT;
         nx = (uint32_t)(i < 0 ? i + (int32_t)FMINI_NSLOT : i);
     }
-    fa_go(nx);
+    t->user = 0;
+    apply_preset_to(t, nx);
+    t->p[P_E7] = (int16_t)nx;
+    fa_factory_extras(t, nx);                         /* its arpeggiator, LFO, FX settings and octave */
+    fmini_poll();
 }
 
 /* a page button: the tap opens it */

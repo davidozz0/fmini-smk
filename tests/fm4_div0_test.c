@@ -17,6 +17,7 @@
 #include "hostsim.c"
 #undef main
 #define PROJ_HOST 1
+static void fb_boot(void) {}                       /* project.c persist_boot calls it (fmini_bank.c, not in this test) */
 #include "../firmware/src/project.c"
 #if FELUCCA_FM4
 #error "fm4_div0_test converts DIGITAL sounds: build it without FELUCCA_FM4"

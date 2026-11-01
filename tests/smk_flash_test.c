@@ -63,7 +63,8 @@ int main(void)
           !LDR_RANGE_OK(0xC0000u, 0x1000u) && FL_REC_HI == 0xC0000u);
     for (o = 0; o < OBJ_COUNT; o++)
         for (c = 0; c < 2u; c++)
-            in_store &= FL_STORE_OK(st_sector(o, c), 0x1000u) && st_sector(o, c) < FL_DATA_HI;
+            in_store &= FL_STORE_OK(st_sector(o, c), 0x1000u) &&
+                        st_sector(o, c) < (o >= OBJ_PRESET0 ? FL_SMP_HI : FL_DATA_HI);
     {   /* every object's two copies distinct */
         uint32_t o2, c2, distinct = 1;
         for (o = 0; o < OBJ_COUNT; o++)
@@ -73,12 +74,20 @@ int main(void)
                         if ((o != o2 || c != c2) && st_sector(o, c) == st_sector(o2, c2) &&
                             !(c == c2 && (o == OBJ_FM6BANK || o == OBJ_UPFM6) && (o2 == OBJ_FM6BANK || o2 == OBJ_UPFM6)))
                             distinct = 0;                 /* (the retired FM6 bank and OBJ_UPFM6 share a pair, as on the FM-1) */
-        check("storage.c: every object (A/B) in FL_DATA, no two share a sector", in_store && distinct);
-        for (o = 0, distinct = 1; o < OBJ_COUNT; o++)
+        check("storage.c: every object (A/B) in the store, no two share a sector", in_store && distinct);
+        for (o = 0, distinct = 1; o < OBJ_PRESET0; o++)
             for (c = 0; c < 2u; c++)
                 distinct &= st_sector(o, c) != ST_SMK_VBANK && st_sector(o, c) < 0xAF000u;
-        check("FM6 voice bank 0xB0000: in FL_DATA, its own sector; objects below the owner tag 0xAF000",
+        check("FM6 voice bank 0xB0000: in FL_DATA, its own sector; the 1.13 objects below the owner tag 0xAF000",
               distinct && FL_STORE_OK(ST_SMK_VBANK, 0x1000u) && ST_SMK_VBANK == 0xB0000u);
+        {   /* the FMini-1 preset bank (1.14.1): 13 A/B pairs in FL_SMP, from 0xC2000, clear of the stock marker */
+            uint32_t n = OBJ_COUNT - OBJ_PRESET0;
+            check("preset bank: 13 objects in FL_SMP from 0xC2000, inside FL_SMP, past the stock marker sector",
+                  n == 13u && st_sector(OBJ_PRESET0, 0) == ST_SMK_BANK && ST_SMK_BANK == FL_SMP_LO &&
+                  st_sector(OBJ_PRESET_LAST, 1) == ST_SMK_BANK + (n * 2u - 1u) * 0x1000u &&
+                  ST_SMK_BANK + n * 2u * 0x1000u <= FL_SMP_HI &&
+                  FL_STORE_OK(st_sector(OBJ_PRESET_LAST, 1), 0x1000u));
+        }
     }
     check("storage.c: settings 0xAD000/0xAE000, projects from 0x9D000",
           st_sector(OBJ_SETTINGS, 0) == 0xAD000u && st_sector(OBJ_SETTINGS, 1) == 0xAE000u && st_sector(OBJ_PROJECT0, 0) == 0x9D000u);

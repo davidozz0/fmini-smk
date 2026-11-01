@@ -60,7 +60,7 @@ PRODUCT = "FM-1_900"                # package identity; release builds are FM-1_
 BOARD = "fm1"                       # fm1 (default) or smk37: BOARD env or --board
 BOARD_PREFIX = {"fm1": "FM-1_9", "smk37": "SMK-37 Pro_9"}   # identity of a release build: prefix + X + Y
 BOARD_DEFS = {"fm1": [], "smk37": ["-DBOARD_SMK37=1"]}       # the FM-1 build gets no new flag (byte-identical)
-BOARD_STEM = {"fm1": "felucca", "smk37": "fmini-1-smk37"}        # package name: STEM.fwsc, STEM-X.Y.fwsc
+BOARD_STEM = {"fm1": None, "smk37": "fmini-1-smk37"}   # package name: <stem>.fwsc, <stem>-X.Y.fwsc; None = upstream's STEM
 # smk37: the keyboard's model name (MODEL env or --model); one hardware, three names. pro adds no flag
 MODELS = {"pro": "SMK-37 Pro", "elite": "SMK-37 Elite", "mke": "MKE-P37"}
 VERSION = None                      # FELUCCA_VERSION for release builds (default: firmware/src/felucca.c)
@@ -412,7 +412,7 @@ def main():
         raise SystemExit(f"MODEL={model}: pro, elite or mke, with BOARD=smk37")
     fm1pkg_make.set_board(BOARD)
     APP_SLOT = fm1pkg_make.APP_SLOT
-    stem = BOARD_STEM[BOARD]
+    stem = BOARD_STEM[BOARD] or STEM          # fm1: upstream's fmini-1-fm1-<version>
     PRODUCT = fm1pkg_make.BOARDS[BOARD][2]
     if model != "pro":              # another model name: identity, loader and update record (fm1_cc.h SMK_MODEL)
         BOARD_DEFS[BOARD] = [*BOARD_DEFS[BOARD], f'-DSMK_MODEL="{MODELS[model]}"']
@@ -426,10 +426,12 @@ def main():
             raise SystemExit(f"--release {a.release}: use X.Y, X.Y.Z, X.Y.Z.W or X.Y-suffix, one digit each")
         PRODUCT = BOARD_PREFIX[BOARD] + m[1] + m[2]
         VERSION = "v" + a.release.lower()      # e.g. v1.0, v1.1-rc1
-        STEM = f"fmini-1-fm1-{a.release}"
-        name = f"{stem}-{a.release}.fwsc"
-    else:
-        name = f"{stem}.fwsc"
+        if BOARD == "fm1":
+            STEM = f"fmini-1-fm1-{a.release}"      # (upstream's form; the app file follows it)
+            stem = STEM
+        else:
+            stem = f"{stem}-{a.release}"
+    name = f"{stem}.fwsc"
     if not (FW / "engines" / "src" / "felucca_engine.h").exists():
         raise SystemExit("firmware/engines is empty: the Felucca-Engines submodule "
                          "(git submodule update --init, or clone with --recurse-submodules)")
@@ -464,7 +466,7 @@ def main():
         att = SRC / "assets" / "samples-cc0" / "ATTRIBUTION.txt"
         shutil.rmtree(rel, ignore_errors=True)
         (rel / "LICENSES").mkdir(parents=True)
-        app = f"{stem}-{a.release}-app.bin"
+        app = f"{stem}-app.bin"
         (rel / name).write_bytes(pkg)
         (rel / app).write_bytes(img)
         (rel / "SHA256SUMS").write_text("".join(f"{hashlib.sha256(b).hexdigest()}  {n}\n"

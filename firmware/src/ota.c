@@ -37,8 +37,8 @@
 #define SMK_MODEL "SMK-37 Pro"                   /* (fm1_cc.h) */
 #endif
 #define OTA_PARM_ID "ota-" SMK_MODEL "_016"       /* the stock app's parm identity (Pro 18 B, Elite 20 B) */
-/* the stock packages' flash.bin sizes, measured on stock/*.fwsc: Pro/Elite/MKE 011 and 014 = 0x9B000, 012, 013
- * and 015 = 0x9C000, 016 = 0x9D000. Going back to stock goes through this entry, so all of them are taken. */
+/* the stock packages' flash.bin sizes, measured on the factory packages: Pro/Elite/MKE 011 and 014 = 0x9B000, 012,
+ * 013 and 015 = 0x9C000, 016 = 0x9D000. Going back to stock goes through this entry, so all of them are taken. */
 #define OTA_STOCK_LEN(n) ((n) == 0x9B000u || (n) == 0x9C000u || (n) == OTA_FL_LEN)
 _Static_assert(OTA_AREA + OTA_AREA_LEN <= 0xC0000u && OTA_AREA >= 0x9D000u, "SMK: OTA area outside the VM");
 #else

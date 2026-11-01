@@ -21,6 +21,7 @@
 #include "hostsim.c"
 #undef main
 #define PROJ_HOST 1                             /* (trk_def_engine: engines.c, through hostsim.c) */
+static void fb_boot(void) {}                       /* project.c persist_boot calls it (fmini_bank.c, not in this test) */
 #include "../firmware/src/project.c"
 #include "old_pack.h"                         /* (FUN9 / FUN8 / FUN7 as firmware before 1.2 wrote them) */
 

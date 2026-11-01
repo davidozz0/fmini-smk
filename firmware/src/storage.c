@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
+#include <stdint.h>                    /* (also read on its own by the host tests; in felucca.c it is already in) */
 /* Persistent storage on the SPI NOR.
  *
  * Every object has an A/B sector pair. A save goes to the copy that is not
@@ -75,24 +76,33 @@ static uint32_t st_crc32(const void *p, uint32_t n) { return ~st_crc32_add(0xFFF
 #define ST_SMK_PAIRS 9u
 #define ST_SMK_SECTORS (2u * ST_SMK_PAIRS)
 #define ST_SMK_VBANK 0xB0000u                  /* the FM6 voice bank (fm6_vbank.c), one sector */
-_Static_assert(OBJ_COUNT == 10u && OBJ_UPFM6 == OBJ_FM6BANK + 1u, "SMK store: a new object needs a place");
+/* The FMini-1 preset bank (1.14.1: OBJ_PRESET0..12, 200 slots in 13 A/B objects) is 104 KiB: more than FL_DATA has
+ * left over, so it goes to USRFLASH (FL_SMP, 0xC2000..), free since 1.13 retired the sample slots. The stock
+ * firmware's mapping marker is released before the first erase there (st_stock_release), as for the sample slots. */
+#define ST_SMK_BANK 0xC2000u
+_Static_assert(OBJ_PRESET0 == OBJ_AUTOSAVE + 1u && OBJ_UPFM6 == OBJ_FM6BANK + 1u,
+               "SMK store: a new object needs a place (the bank's 13 go to ST_SMK_BANK)");
 _Static_assert(ST_SMK_BASE + ST_SMK_SECTORS * ST_SECTOR == 0xAF000u, "SMK store: the objects end at the owner tag");
 _Static_assert(ST_SMK_VBANK >= 0xAF000u + ST_SECTOR && ST_SMK_VBANK + ST_SECTOR <= 0xBB000u, "SMK store: past FL_DATA");
+_Static_assert(ST_SMK_BANK >= FL_SMP_LO && ST_SMK_BANK + (OBJ_COUNT - OBJ_PRESET0) * 2u * ST_SECTOR <= FL_SMP_HI,
+               "SMK store: the preset bank must fit FL_SMP");
 static uint32_t st_sector(uint32_t obj, uint32_t copy)  /* flash offset of copy A (0) / B (1) */
 {
-    static const uint8_t ORDER[OBJ_COUNT] = {
+    static const uint8_t ORDER[OBJ_PRESET0] = {
         [OBJ_PROJECT0] = 0, [OBJ_PROJECT0 + 1] = 1, [OBJ_PROJECT0 + 2] = 2, [OBJ_PROJECT0 + 3] = 3,
         [OBJ_UPRESET0] = 4, [OBJ_UPRESET0 + 1] = 5, [OBJ_AUTOSAVE] = 6, [OBJ_FM6BANK] = 7, [OBJ_UPFM6] = 7,
         [OBJ_SETTINGS] = 8};
-    return ST_SMK_BASE + (ORDER[obj % OBJ_COUNT] * 2u + (copy & 1u)) * ST_SECTOR;
+    if (obj >= OBJ_PRESET0)                       /* the preset bank: USRFLASH, 13 A/B pairs */
+        return ST_SMK_BANK + (obj - OBJ_PRESET0) * 2u * ST_SECTOR + (copy & 1u) * ST_SECTOR;
+    return ST_SMK_BASE + (ORDER[obj] * 2u + (copy & 1u)) * ST_SECTOR;
 }
 
 /* The owner of the store. The store area is the stock firmware's VM, so after an install it may hold the stock
  * firmware's (or any other firmware's) data, which Felucca must never parse as its own. The sector after the objects
  * (0xAF000) holds the tag "SMK37DATAFELUCCA" (FMINI on the SMK-37). Tagged: load as ever. Anything else (another tag, or none): clear the
  * objects (0x9D000..0xAEFFF) and the FM6 voice bank (0xB0000), then write the tag. FELUCCA_DATA_UNTAGGED_OK 1 would
- * keep a store with an erased tag (0: the SMK build never wrote untagged data). User samples (FL_SMP) validate
- * themselves. Calibration, BT pairing and key_mac are outside FL_DATA: never touched. Called first in persist_boot
+ * keep a store with an erased tag (0: the SMK build never wrote untagged data). The preset bank (FL_SMP) and the
+ * user samples of the FM-1 builds validate themselves (their commit records / headers). Calibration, BT pairing and key_mac are outside FL_DATA: never touched. Called first in persist_boot
  * (project.c), before any store read. */
 #ifndef FELUCCA_DATA_UNTAGGED_OK
 #define FELUCCA_DATA_UNTAGGED_OK 0
