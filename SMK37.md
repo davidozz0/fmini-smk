@@ -39,8 +39,8 @@ The FM-1's manual still applies; the SMK-37's controls map onto the FM-1's like 
 
 ### Pad preset picker
 
-Turn PRESETS: the 16 pads show that patch's page of 16 (factory patches first, then the saved ones), the loaded
-one bright. A pad loads and previews its preset. The picker stays for 4 seconds after the last move; KNOB BANK
+Turn PRESETS: the 16 pads show that page of the 200 presets (000..199, the same list PRESETS walks), the loaded
+one bright. A pad loads and previews its slot. The picker stays for 4 seconds after the last move; KNOB BANK
 pins it open, and `<` / `>` move a page (16) at a time. When the picker is closed the pads play their white keys.
 
 ## MIDI
@@ -83,9 +83,14 @@ SMK-37 Pro V016 package.
 - Keep the USB cable connected until the install has finished and the keyboard has restarted.
 - The first start clears the stock firmware's settings, and any other firmware's data, in the shared data area
   (this build tags it `FMINI`).
-- The stock firmware's key, knob and fader mapping (in the user sample area) is kept intact. Before the first
-  sample is written there, FMini-1 releases the stock firmware's marker for that area, so after going back to
-  stock it rebuilds its factory mapping instead of reading erased data.
+- **Saved presets use the stock firmware's user-sample area.** FMini-1 1.14.1 has a bank of 200 preset slots that
+  needs 104 KiB; the SMK's own store (0x9D000..0xBAFFF) has no room for it, so the bank lives in USRFLASH from
+  0xC2000, which the stock firmware uses for its user samples. The first preset save releases the stock
+  firmware's end marker there, so after going back to stock it rebuilds its **factory** key, knob and fader
+  mapping instead of restoring a mapping you had saved. Nothing else of the stock firmware is touched, and if you
+  never save a preset the area is left exactly as it was.
+- Stock packages of every version install from here (the official update loader writes its own flash.bin size:
+  0x9B000, 0x9C000 or 0x9D000), so the way back to stock is open whatever version you kept.
 - The firmware never writes the keyboard's calibration, Bluetooth pairing or key areas; the flash map refuses
   them at compile time and again in the flash driver.
 - Installing other firmware is at your own risk.
