@@ -155,9 +155,14 @@ static void irq_restore(uint32_t f) { (void)f; }
 static uint32_t fl_jedec_ram(void) { return 0xEB6014u; }             /* the SMK-37's part (project.c) */
 static void fl_plain_window_init(void) {}
 #define FL_FAR(fn) (fn)
-#include "../../firmware/hal/fm1_flash_map.h"
+/* main.c reads the calibration curves through the XIP window: in the browser there are none (a zero buffer) */
+static const uint8_t emu_xip_zeros[64];
+static const uint8_t *fm1_xip_ptr(uint32_t off) { (void)off; return emu_xip_zeros; }   /* SMK_TRIM_FLASH: smk_panel_sim.h */
+#include "../../firmware/hal/fm1_flash_map.h"    /* FL_SMP_LO, FL_STOCKTAG_OFF (storage.c below) */ // IWYU pragma: keep
 #include "../../firmware/src/storage.c"
 #include "../../firmware/src/upreset.c"
+#include "../../firmware/src/fmini_rec.c"       /* preset records and the bank (project.c and fmini_app.c call into them) */ // IWYU pragma: keep
+#include "../../firmware/src/fmini_bank.c"                                          // IWYU pragma: keep
 #include "../../firmware/src/project.c"
 
 /* ------------------------------------------------- main.c and its HAL --- */
