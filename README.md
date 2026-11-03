@@ -5,22 +5,31 @@ GPL-3.0-only) to the **M-VAVE SMK-37**. Same Minimoog-style synth, effects, arpe
 sequencer, on a keyboard with 37 velocity keys, 16 RGB pads, 8 encoders, two wheels and a TRS MIDI
 jack.
 
-Built from **FMini-1 1.16.0** (`upstream/main` at `8f8a016`, 35 commits past the last tag `v1.14.3`), with
-the port's changes on top. This is the `smk37` branch. The FM-1 build stays the default and is
-unchanged, byte for byte; everything for the SMK-37 is behind `BOARD_SMK37`.
+Built from **FMini-1 2.0.0** (tag `v2.0.0`, `f1fd199`, 2 November 2026), with
+the port's changes on top. This is the `smk37-2.0.0` branch (the 1.16.0 one is kept as `smk37`). The FM-1
+build stays the default and is unchanged, byte for byte; everything for the SMK-37 is behind `BOARD_SMK37`.
 
 > Not affiliated with M-VAVE or with the FMini-1 author. The synth is their work; the port and the
 > changes listed below are ours. The original README is kept as
 > [`README-UPSTREAM.md`](README-UPSTREAM.md).
 
-## The port, updated to FMini-1 1.16.x
+## The port, updated to FMini-1 2.0.0
 
-The port started on **1.8.0** and now follows **1.16.0**. Upstream does not tag every release: the last
-tag is `v1.14.3`, and `main` carries 1.14.25 → 1.16.0 on top of it, so the port tracks `main` and the
-version the firmware declares (`FMINI_VERSION` in `firmware/src/core.h`). The move was a rebase of the
-port's five commits over **95 upstream commits**, not a merge of two trees.
+The port started on **1.8.0**, followed **1.16.0** and now follows **2.0.0** (the first tagged release
+since `v1.14.3`). Each move is a rebase of the port's commits over the new upstream, not a merge of two
+trees: the first one crossed 95 upstream commits, the second 20 (1.16.1 → 2.0.0, 24 files, +536/−95).
 
-What upstream changed in between, and what it cost here:
+What upstream changed between 1.16.0 and 2.0.0, and what it cost here:
+
+| upstream | what it means for the port |
+|---|---|
+| **1.18.0: a preset change keeps the screen** (the return to HOME is gone) | the port's picker hook stays inside the `PRESETS` branch; nothing to redo, and the conflict was in that one block |
+| **1.19.0: MIDI bank select reaches presets 100-199** | the picker already walks all 200 slots: no change. The bank-select path is upstream's |
+| **1.19.1: steady tempo on an external MIDI clock**, **1.21.0: HOME opens FILT**, **1.22.0: SEQ recording takes rests**, **1.23.0: GLO held opens ABOUT** | inherited as-is on both boards; `fmini_app.c` was the only shared file to touch, and only where the port hooks the picker |
+| **1.16.1/1.18.1/1.18.2/1.20.x: the CPU line at 93 %, the idle show, the pop-up timing, three presets renamed** | nothing to do: no port code involved |
+| **the host tests now need a `fb_boot` stub** (`tests/*_test.c` include `project.c`) | already carried by the port since 1.16.0; **clean 2.0.0 does not compile five of its own tests** without it (`tests/run_tests.sh` stops at `fm6bank_test`) |
+
+What upstream changed between 1.8.0 and 1.16.0, and what it cost here:
 
 | upstream | what it means for the port |
 |---|---|
@@ -31,7 +40,7 @@ What upstream changed in between, and what it cost here:
 | **1.15.0: the reverb's output low-pass**, **1.16.0: the "CPU High" pop-up** | inherited as-is on both boards |
 | **the stock package sizes accepted by the update entry** (`0xA9000` on the FM-1) | the same idea is applied to the SMK: the entry accepts the stock `flash.bin` sizes of every version (`0x9B000`, `0x9C000`, `0x9D000`), so the way back to stock is open whatever version was kept |
 
-Two things had to be re-earned after the rebase, both checked:
+Two things had to be re-earned after the first rebase, both checked:
 
 - **the FM-1 build is byte-identical to upstream again** — the port had started calling a refactored
   preset helper from the FM-1 path too, which moved 26 bytes in `fa_input`; the helper is `BOARD_SMK37`-only
@@ -56,7 +65,7 @@ Two things had to be re-earned after the rebase, both checked:
 | **Data family `FMINI`** | the SMK store is shared with the stock firmware and other ports: FMini-1 must not read their data. The store is cleared once and tagged `FMINI`; the stock sample-area marker is preserved/released as described in `SMK37.md` | `firmware/src/storage.c`, `firmware/src/project.c` |
 | **SMK flash map** | an explicit allow-list: only the app area, the VM store, the OTA staging and the user sample area can be erased or written; head/SPL, USRTRIM calibration, Bluetooth pairing and `key_mac` are never touched | `firmware/hal/fm1_flash_map.h`, `firmware/hal/fm1_flash.[ch]`, `firmware/src/storage_hw.c` |
 | **Package and models** | `fmini-1-smk37.fwsc` (identity `SMK-37 Pro_900`); `MODEL=elite` / `MODEL=mke` keep the Elite / MKE-P37 identity, so the stock updater still accepts that unit's factory package | `tools/build.py`, `build.sh`, `tools/fm1pkg_make.py`, `tools/fm1_install.py` |
-| **Tests** | the SMK store, flash allow-list, package and installer have their own host tests; the rest of the 1.16.0 suite is unchanged | `tests/smk_owner_test.c`, `tests/smk_flash_test.c`, `tests/smk_pkg_test.py`, `tests/install_test.py`, `tests/run_tests.sh` |
+| **Tests** | the SMK store, flash allow-list, package and installer have their own host tests; the rest of the 2.0.0 suite is unchanged | `tests/smk_owner_test.c`, `tests/smk_flash_test.c`, `tests/smk_pkg_test.py`, `tests/install_test.py`, `tests/run_tests.sh` |
 | **Browser emulator for the SMK page** | FMini-1 now has a bridge that speaks the SMK simulator page's `synth_*` / `fw_*` ABI; the existing `web/emu` build still shows the upstream FM-1 panel | `web/emu/fmini_smk_web.c`, `web/emu/smk_engine.c`, `web/emu/smk_panel_sim.h`, `web/emu/build_smk_emu.sh`, `web/emu/emu_test_smk.mjs` |
 
 The controls are listed in full in [`SMK37.md`](SMK37.md).
@@ -95,7 +104,7 @@ The page is generated, not hand-written:
 
 ```sh
 BOARD=smk37 ./build.sh
-python3 web/make_site.py build/fmini-1-smk37.fwsc 1.16.0-smk37.1 build/site
+python3 web/make_site.py build/fmini-1-smk37.fwsc 2.0.0-smk37.1 build/site
 ```
 
 `web/make_site.py` inlines `fm1pkg.js`, `fm1ota.js`, `fm1backup.js` and the metadata into
@@ -137,10 +146,11 @@ The upstream FM-1 browser build (its own panel, `web/emu/felucca_web.c`) is stil
 
 ## Status
 
-- FM-1 build: verified byte-identical to 1.16.0 (`upstream/main` `8f8a016`) — app, `loader/ota.bin`
+- FM-1 build: verified byte-identical to 2.0.0 (`v2.0.0`, `f1fd199`) — app (`6084a0d1…`), `loader/ota.bin`
   and `.fwsc` all match a clean upstream build made the same day.
-- Host tests: the SMK-specific tests pass; the suite keeps the failures upstream already has (the
-  retired-engine sections listed in [`CLAUDE.md`](CLAUDE.md)).
+- Host tests: the SMK-specific tests pass; the suite keeps exactly the failures a clean 2.0.0 has with
+the same `fb_boot` stubs (the `1.6` UI test, `union_test`'s 1.4 golden, the four editor KNOWN FAILs, the
+retired-engine sections listed in [`CLAUDE.md`](CLAUDE.md)).
 - Browser emulator: the `fmini` instance boots, draws the FMini-1 screen, plays keys and pads, and
   opens the preset picker.
 - Physical SMK-37: still to verify on the unit — flash/rollback, key and pad velocity, wheel
