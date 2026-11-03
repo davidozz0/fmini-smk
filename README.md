@@ -5,19 +5,26 @@ GPL-3.0-only) to the **M-VAVE SMK-37**. Same Minimoog-style synth, effects, arpe
 sequencer, on a keyboard with 37 velocity keys, 16 RGB pads, 8 encoders, two wheels and a TRS MIDI
 jack.
 
-Built from **FMini-1 2.0.0** (tag `v2.0.0`, `f1fd199`, 2 November 2026), with
-the port's changes on top. This is the `smk37-2.0.0` branch (the 1.16.0 one is kept as `smk37`). The FM-1
+Built from **FMini-1 2.1.0** (tag `v2.1.0`, `a65a7ee`, 3 November 2026), with
+the port's changes on top. This is the `smk37-2.1.0` branch (`smk37-2.0.0` and `smk37`, the 1.16.0 one, are kept). The FM-1
 build stays the default and is unchanged, byte for byte; everything for the SMK-37 is behind `BOARD_SMK37`.
 
 > Not affiliated with M-VAVE or with the FMini-1 author. The synth is their work; the port and the
 > changes listed below are ours. The original README is kept as
 > [`README-UPSTREAM.md`](README-UPSTREAM.md).
 
-## The port, updated to FMini-1 2.0.0
+## The port, updated to FMini-1 2.1.0
 
-The port started on **1.8.0**, followed **1.16.0** and now follows **2.0.0** (the first tagged release
-since `v1.14.3`). Each move is a rebase of the port's commits over the new upstream, not a merge of two
-trees: the first one crossed 95 upstream commits, the second 20 (1.16.1 → 2.0.0, 24 files, +536/−95).
+The port started on **1.8.0**, followed **1.16.0**, then **2.0.0**, and now **2.1.0** — three upstream moves in
+one day for the last two. Each one is a rebase of the port's commits over the new upstream, not a merge of two
+trees: the first crossed 95 upstream commits, the second 20 (1.16.1 → 2.0.0, 24 files, +536/−95), the third 3
+(the mod wheel, below).
+
+**2.1.0: the mod wheel is a vibrato.** CC1 no longer deepens the patch's MOD depth: it adds the track's LFO to
+the pitch, ±1 semitone at full wheel, whatever MOD OSC says (`eng_fmini.c`). Nothing to redo in the port — our
+mod wheel already sends CC1 on the selected track (`smk_wheels_block`) — but it changes how the wheel feels:
+on the SMK the wheel is now a vibrato too, and the patch's E6 is the only MOD depth. The matrix's MODW source
+still reads the wheel.
 
 What upstream changed between 1.16.0 and 2.0.0, and what it cost here:
 
@@ -59,13 +66,13 @@ Two things had to be re-earned after the first rebase, both checked:
 | **Preset picker on the pads** | turning **PRESETS (K4)** shows a page of 16 sounds on the pads for 4 s; **KNOB BANK** pins it, `<` / `>` move a page, a pad loads its sound | `firmware/src/fmini_app.c` (`fa_pick`), `firmware/src/smk_input.h` (`smk_pad_pick`, `smk_pad_take`) |
 | **Pad LEDs** | a pad lights only while held or when it is part of the picker; the picker's loaded sound is brighter | `firmware/src/fmini_app.c` (`fa_leds`) |
 | **Master volume on K1** | the SMK has no analog master pot: turning K1 shows `MASTER`, a bar and the value in the header for about a second | `firmware/src/fmini_app.c` |
-| **Wheels** | the pitch wheel bends the selected track by a fixed **7 semitones**, the mod wheel drives **MODW / CC1**; both are self-calibrating and sent to MIDI OUT | `firmware/src/main.c` (`smk_wheels`), `firmware/src/seq.c` (`smk_wheels_block`) |
+| **Wheels** | the pitch wheel bends the selected track by a fixed **7 semitones**; the mod wheel sends **CC1**, which is a **vibrato** since 2.1.0 (±1 semitone) and the **MODW** source in the matrix; both are self-calibrating and sent to MIDI OUT | `firmware/src/main.c` (`smk_wheels`), `firmware/src/seq.c` (`smk_wheels_block`) |
 | **TRS MIDI OUT** | the SMK's 3.5 mm jack is an output (UART1 TX, PC7); it mirrors the USB output, including clock and Start / Stop while FMini-1 is the clock master. There is no TRS MIDI IN: on the SMK that pin is a key row | `firmware/src/smk_trs.c`, `firmware/hal/smk_trs_tx.h`, `firmware/src/usb.c`, `firmware/src/seq.c` |
 | **Faders off** | this unit's fader 1 is damaged; the profile applies none of the four (`SMK_FADER_DISABLE 0xF`) | `firmware/hal/smk_compat.h`, `firmware/src/main.c` (`smk_faders`) |
 | **Data family `FMINI`** | the SMK store is shared with the stock firmware and other ports: FMini-1 must not read their data. The store is cleared once and tagged `FMINI`; the stock sample-area marker is preserved/released as described in `SMK37.md` | `firmware/src/storage.c`, `firmware/src/project.c` |
 | **SMK flash map** | an explicit allow-list: only the app area, the VM store, the OTA staging and the user sample area can be erased or written; head/SPL, USRTRIM calibration, Bluetooth pairing and `key_mac` are never touched | `firmware/hal/fm1_flash_map.h`, `firmware/hal/fm1_flash.[ch]`, `firmware/src/storage_hw.c` |
 | **Package and models** | `fmini-1-smk37.fwsc` (identity `SMK-37 Pro_900`); `MODEL=elite` / `MODEL=mke` keep the Elite / MKE-P37 identity, so the stock updater still accepts that unit's factory package | `tools/build.py`, `build.sh`, `tools/fm1pkg_make.py`, `tools/fm1_install.py` |
-| **Tests** | the SMK store, flash allow-list, package and installer have their own host tests; the rest of the 2.0.0 suite is unchanged | `tests/smk_owner_test.c`, `tests/smk_flash_test.c`, `tests/smk_pkg_test.py`, `tests/install_test.py`, `tests/run_tests.sh` |
+| **Tests** | the SMK store, flash allow-list, package and installer have their own host tests; the rest of the 2.1.0 suite is unchanged | `tests/smk_owner_test.c`, `tests/smk_flash_test.c`, `tests/smk_pkg_test.py`, `tests/install_test.py`, `tests/run_tests.sh` |
 | **Browser emulator for the SMK page** | FMini-1 now has a bridge that speaks the SMK simulator page's `synth_*` / `fw_*` ABI; the existing `web/emu` build still shows the upstream FM-1 panel | `web/emu/fmini_smk_web.c`, `web/emu/smk_engine.c`, `web/emu/smk_panel_sim.h`, `web/emu/build_smk_emu.sh`, `web/emu/emu_test_smk.mjs` |
 
 The controls are listed in full in [`SMK37.md`](SMK37.md).
@@ -104,7 +111,7 @@ The page is generated, not hand-written:
 
 ```sh
 BOARD=smk37 ./build.sh
-python3 web/make_site.py build/fmini-1-smk37.fwsc 2.0.0-smk37.1 build/site
+python3 web/make_site.py build/fmini-1-smk37.fwsc 2.1.0-smk37.1 build/site
 ```
 
 `web/make_site.py` inlines `fm1pkg.js`, `fm1ota.js`, `fm1backup.js` and the metadata into
@@ -146,7 +153,7 @@ The upstream FM-1 browser build (its own panel, `web/emu/felucca_web.c`) is stil
 
 ## Status
 
-- FM-1 build: verified byte-identical to 2.0.0 (`v2.0.0`, `f1fd199`) — app (`6084a0d1…`), `loader/ota.bin`
+- FM-1 build: verified byte-identical to 2.1.0 (`v2.1.0`, `a65a7ee`) — app (`31abb53b…`), `loader/ota.bin`
   and `.fwsc` all match a clean upstream build made the same day.
 - Host tests: the SMK-specific tests pass; the suite keeps exactly the failures a clean 2.0.0 has with
 the same `fb_boot` stubs (the `1.6` UI test, `union_test`'s 1.4 golden, the four editor KNOWN FAILs, the
