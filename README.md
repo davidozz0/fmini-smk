@@ -103,12 +103,19 @@ model and two full flash dumps before writing. See `SMK37.md` for the install an
 
 ### Web installer (no tools, no driver)
 
-<https://davidozz0.github.io/fmini-smk/webapp/installer/> — open it in **Chrome or Edge** (Web MIDI),
-plug the SMK via USB, press install and pick its port. The page checks the package's sha256, writes the
-app area and verifies the identity the keyboard reports afterwards; it installs nothing on a device that
-is not `SMK-37 Pro_9..`. **SMK-37 Elite and MKE-P37 have their own page and package** — the pages link
-to each other under the banner (`/webapp/installer-smk37-elite/`, `/webapp/installer-mke-p37/`), because
-a package installs only on the model it was built for. The editor is at `/webapp/editor/`.
+One page per model, because a package installs only on the model it was built for:
+
+| keyboard | page |
+| --- | --- |
+| **SMK-37 Pro** | <https://davidozz0.github.io/fmini-smk/webapp/installer/> |
+| **SMK-37 Elite** | <https://davidozz0.github.io/fmini-smk/webapp/installer-smk37-elite/> |
+| **MKE-P37** | <https://davidozz0.github.io/fmini-smk/webapp/installer-mke-p37/> |
+
+Open it in **Chrome or Edge** (Web MIDI), plug the SMK via USB, press install and pick its port. The page
+checks the package's sha256, writes the app area and verifies the identity the keyboard reports
+afterwards; it installs nothing on a device of another model (a Pro package on an Elite is refused with
+`model`, and the other way round). The pages link to each other under the banner. The editor is at
+`/webapp/editor/`.
 
 The pages are generated, not hand-written:
 
