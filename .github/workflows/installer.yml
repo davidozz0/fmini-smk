@@ -40,7 +40,10 @@ jobs:
               https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK"
 
       - name: Build the SMK-37 port
-        run: BOARD=smk37 ./build.sh
+        run: |
+          BOARD=smk37 ./build.sh
+          BOARD=smk37 MODEL=elite ./build.sh
+          BOARD=smk37 MODEL=mke ./build.sh
 
       - name: Web tests
         run: node web/test_web.mjs
@@ -50,7 +53,8 @@ jobs:
         run: |
           VERSION=$(sed -n 's/^#define FMINI_VERSION "v\(.*\)"/\1/p' firmware/src/core.h)
           echo "version=$VERSION-smk37" >> "$GITHUB_OUTPUT"
-          python3 web/make_site.py build/fmini-1-smk37.fwsc "$VERSION-smk37" _site
+          python3 web/make_site.py _site "$VERSION-smk37" \
+              build/fmini-1-smk37.fwsc build/fmini-1-smk37-elite.fwsc build/fmini-1-smk37-mke.fwsc
 
       - name: Publish to gh-pages
         run: |

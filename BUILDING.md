@@ -149,7 +149,7 @@ Or, to install your own build from the web installer, make a local copy of the s
 (Web MIDI needs a secure context):
 
 ```
-python3 web/make_site.py build/fmini-1-fm1-<version>.fwsc dev /tmp/fmini-1-fm1-site
+python3 web/make_site.py /tmp/fmini-1-fm1-site dev build/fmini-1-fm1-<version>.fwsc
 cd /tmp/fmini-1-fm1-site && python3 -m http.server 8000
 # open http://localhost:8000/webapp/installer/
 ```

@@ -103,26 +103,30 @@ model and two full flash dumps before writing. See `SMK37.md` for the install an
 
 ### Web installer (no tools, no driver)
 
-<https://davidozz0.github.io/fmini-smk/webapp/installer/> — open it in **Chrome or Edge** (Web Serial),
+<https://davidozz0.github.io/fmini-smk/webapp/installer/> — open it in **Chrome or Edge** (Web MIDI),
 plug the SMK via USB, press install and pick its port. The page checks the package's sha256, writes the
 app area and verifies the identity the keyboard reports afterwards; it installs nothing on a device that
-is not `SMK-37 Pro_9..`. The editor is at `/webapp/editor/`.
+is not `SMK-37 Pro_9..`. **SMK-37 Elite and MKE-P37 have their own page and package** — the pages link
+to each other under the banner (`/webapp/installer-smk37-elite/`, `/webapp/installer-mke-p37/`), because
+a package installs only on the model it was built for. The editor is at `/webapp/editor/`.
 
-The page is generated, not hand-written:
+The pages are generated, not hand-written:
 
 ```sh
-BOARD=smk37 ./build.sh
-python3 web/make_site.py build/fmini-1-smk37.fwsc 2.1.0-smk37 build/site
+BOARD=smk37 ./build.sh                 # + MODEL=elite and MODEL=mke: one package per model
+python3 web/make_site.py build/site 2.1.0-smk37 \
+    build/fmini-1-smk37.fwsc build/fmini-1-smk37-elite.fwsc build/fmini-1-smk37-mke.fwsc
 ```
 
 `web/make_site.py` inlines `fm1pkg.js`, `fm1ota.js`, `fm1backup.js` and the metadata into
 `web/index_pkg.html` (edited here: title and a banner saying it is the SMK-37 port, not the official
-FMini-1); the result goes to the `gh-pages` branch.
+FMini-1), writes one page per package (the model name and the package's identity are taken from the
+package itself; the first one is the main `installer/` page) and the result goes to the `gh-pages` branch.
 
 **It is published automatically**: `.github/workflows/installer.yml` runs on every push to `smk37`,
-builds the port, takes the version from `firmware/src/core.h` and pushes the regenerated site to
-`gh-pages`, so the page always serves the last build of that branch (Pages must stay on
-"Deploy from a branch: `gh-pages`"). A hand publish is the same two commands, with `build/site` copied
+builds the three models, takes the version from `firmware/src/core.h` and pushes the regenerated site to
+`gh-pages`, so the pages always serve the last build of that branch (Pages must stay on
+"Deploy from a branch: `gh-pages`"). A hand publish is the same commands, with `build/site` copied
 over the `gh-pages` checkout.
 
 ## Build
