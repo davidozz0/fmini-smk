@@ -28,7 +28,7 @@
   <div style="margin:16px 0;padding:12px 14px;border:1px solid var(--dim);border-left:4px solid #ff621a;border-radius:8px">
     <p style="margin:0 0 6px"><b>UNOFFICIAL PORT FOR THE M-VAVE SMK-37 PRO</b></p>
     <p class="small" style="margin:0 0 8px">This is <b>not</b> the official FMini-1 and it is <b>not</b> for the FM-1. It is
-    FMini-1 <b>1.16.0</b> rebuilt for the <b>M-VAVE SMK-37 Pro</b>, and it installs only on a device that reports
+    FMini-1 <b id="pkgver">2.1.0</b> rebuilt for the <b>M-VAVE SMK-37 Pro</b>, and it installs only on a device that reports
     <code>SMK-37 Pro_9..</code> (never on an FM-1, an Elite, an MKE-P37 or another SMK-37 model).</p>
     <p class="small" style="margin:0 0 6px">What the port changes: 37 velocity keys instead of the FM-1's matrix;
     the 16 RGB pads pick the <b>200 presets</b> 16 at a time (<b>PRESETS</b> opens the picker, <b>KNOB BANK</b> pins it,
@@ -66,7 +66,7 @@
     FM6 engine: msfa from Dexed (Google Inc., Pascal Gauthier, Apache-2.0). The package also holds three JieLi AC79 SDK files, uboot.boot, cfg_tool.bin and eq_cfg_hw.bin (JieLi Technology, Apache-2.0). <a href="../../firmware/LICENSING.md" style="color:inherit">Licences</a>: <a href="../../firmware/LICENSE" style="color:inherit">GPL-3.0</a>, <a href="../../firmware/LICENSES/Apache-2.0.txt" style="color:inherit">Apache-2.0</a>, <a href="../../firmware/LICENSES/" style="color:inherit">all</a>.<br>
     M-VAVE and FM-1 are trademarks of their respective owners.<br>
     <span data-t="license"></span> <a href="https://github.com/hugelton/Felucca" target="_blank" rel="noopener" style="color:inherit">github.com/hugelton/Felucca</a><br>
-    This SMK-37 port: <a href="https://github.com/davidozz0/fmini-smk" target="_blank" rel="noopener" style="color:inherit">github.com/davidozz0/fmini-smk</a> (branch <code>smk37</code>, built from FMini-1 1.16.0)</p>
+    This SMK-37 port: <a href="https://github.com/davidozz0/fmini-smk" target="_blank" rel="noopener" style="color:inherit">github.com/davidozz0/fmini-smk</a> (branch <code>smk37</code>)</p>
 </main>
 <script type="module">
 // SPDX-License-Identifier: GPL-3.0-only
@@ -876,7 +876,8 @@ const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textCont
 const say = (txt) => { lastKey = null; $("status").textContent = txt; };
 const log = (t) => { $("log").textContent += t + "\n"; };
 let image = null;
-const meta = {"version": "1.16.0-smk37.1", "product": "SMK-37 Pro_900", "pkg": "../../firmware/fmini-1-1.16.0-smk37.1.fwsc"};
+const meta = {"version": "2.1.0-smk37", "product": "SMK-37 Pro_900", "pkg": "../../firmware/fmini-1-2.1.0-smk37.fwsc"};
+$("pkgver").textContent = String(meta.version).split("-")[0];   // the banner follows the package the page serves
 
 let writing = false, stock = null, stockFileEpoch = 0;
 const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on; };
