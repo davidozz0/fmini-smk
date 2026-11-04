@@ -6,8 +6,9 @@ sequencer, on a keyboard with 37 velocity keys, 16 RGB pads, 8 encoders, two whe
 jack.
 
 Built from **FMini-1 2.1.0** (tag `v2.1.0`, `a65a7ee`, 3 November 2026), with
-the port's changes on top. This is the `smk37-2.1.0` branch (`smk37-2.0.0` and `smk37`, the 1.16.0 one, are kept). The FM-1
-build stays the default and is unchanged, byte for byte; everything for the SMK-37 is behind `BOARD_SMK37`.
+the port's changes on top, on the `smk37` branch (it moves from release to release; there are no per-release
+branches). The FM-1 build stays the default and is unchanged, byte for byte; everything for the SMK-37 is
+behind `BOARD_SMK37`.
 
 > Not affiliated with M-VAVE or with the FMini-1 author. The synth is their work; the port and the
 > changes listed below are ours. The original README is kept as
@@ -111,14 +112,18 @@ The page is generated, not hand-written:
 
 ```sh
 BOARD=smk37 ./build.sh
-python3 web/make_site.py build/fmini-1-smk37.fwsc 2.1.0-smk37.1 build/site
+python3 web/make_site.py build/fmini-1-smk37.fwsc 2.1.0-smk37 build/site
 ```
 
 `web/make_site.py` inlines `fm1pkg.js`, `fm1ota.js`, `fm1backup.js` and the metadata into
 `web/index_pkg.html` (edited here: title and a banner saying it is the SMK-37 port, not the official
-FMini-1); the result goes to the `gh-pages` branch. The package published there so far is
-`fmini-1-1.8.0-smk37.1.fwsc` (sha256 `74e793ec…`, built from the 1.8.0 branch state): the installer
-page still serves that one, so publish a new package from this branch before pointing anyone at it.
+FMini-1); the result goes to the `gh-pages` branch.
+
+**It is published automatically**: `.github/workflows/installer.yml` runs on every push to `smk37`,
+builds the port, takes the version from `firmware/src/core.h` and pushes the regenerated site to
+`gh-pages`, so the page always serves the last build of that branch (Pages must stay on
+"Deploy from a branch: `gh-pages`"). A hand publish is the same two commands, with `build/site` copied
+over the `gh-pages` checkout.
 
 ## Build
 
